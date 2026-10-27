@@ -190,7 +190,7 @@ javascript:(function(){
     }();
   }
 
-  const version = 'v6.9 (Clean Inputs)';
+  const version = 'v7.1 (Export with Off & Noble inputs)';
   let storedVillageList = {};
   const coordinateRegex = /\d{1,3}\|\d{1,3}/g;
 
@@ -220,7 +220,7 @@ javascript:(function(){
         }
         if (dir.includes('top')) {
           const newHeight = globalResizingState.startHeight - dy;
-          if (newHeight >= 450) { activeContainer.style.height = `${newHeight}px`; activeContainer.style.top = `${globalResizingState.startTop + dy}px`; activeContainer.style.maxHeight = 'none'; }
+          if (newHeight >= 450) { activeContainer.style.height = `${newHeight}px`; activeContainer.style.top = `${globalResizingState.startTop + dy}px`; activeContainer.style.maxWidth = 'none'; }
         }
       }
     });
@@ -312,6 +312,7 @@ javascript:(function(){
           <div style="background:#fff8e8; border:1px solid #d8c29d; padding:6px 10px; border-radius:4px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:space-between; flex-shrink:0;">
               <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                   <span>Кэш деревень: <b id="twCacheCount" style="color:#8c6723;">${Object.keys(storedVillageList).length}</b></span>
+                  <label style="cursor:pointer; font-weight:bold; color:#000;"><input type="checkbox" id="twSelectAllCheckbox"> Выбрать все</label>
                   <label style="cursor:pointer; color:#b71c1c;"><input type="checkbox" id="twHideReservations" ${savedHideReservations?'checked':''}> Убрать бронь</label>
                   <label style="cursor:pointer; color:#7d0f0f;"><input type="checkbox" id="twNobleSearch" ${savedNobleSearch?'checked':''}> Поиск атак дворянином</label>
                   <label style="cursor:pointer; font-weight:bold; color:#5b3511;"><input type="checkbox" id="twFetchCmds" ${savedFetchCmds?'checked':''}> Приказы</label>
@@ -395,6 +396,11 @@ javascript:(function(){
     }
   });
 
+  $('#twSelectAllCheckbox').change(function() {
+    let isChecked = $(this).is(':checked');
+    $('#twScanResults').find('.enemy-village-chk, .own-village-chk').prop('checked', isChecked);
+  });
+
   $('#twClearInputsBtn').click(function() {
     $('#twEnemyInput').val('');
     $('#twOwnInput').val('');
@@ -406,6 +412,7 @@ javascript:(function(){
     $('#twShowReturns').prop('checked', true);
     $('#twHideReservations').prop('checked', false);
     $('#twNobleSearch').prop('checked', true);
+    $('#twSelectAllCheckbox').prop('checked', false);
     localStorage.clear();
     $('#twScanResults').html('Настройки очищены.');
     $('#twMakePlanBtn, #twCopyTableBtn').hide();
@@ -442,6 +449,7 @@ javascript:(function(){
     }
 
     $resBox.html(outputHtml);
+    $('#twSelectAllCheckbox').prop('checked', false);
   }
 
   // Запуск сканирования
@@ -470,7 +478,6 @@ javascript:(function(){
     $resBox.html('🔄 Загрузка данных с сервера игры...');
     $('#twMakePlanBtn, #twCopyTableBtn').hide();
     $('#twPlanOutputContainer').hide();
-    window.lastScanTableData = [];
     window.scannedEnemyData = [];
 
     let mapBase = location.origin + '/map/';
@@ -620,12 +627,6 @@ javascript:(function(){
                 <span>Двор: <input type="number" class="nearby-noble-input" value="0" min="0" style="width:35px; text-align:center; padding:1px;"></span>
               </div>
             </div>`;
-            
-            window.lastScanTableData.push({
-              enemyPlayer: enemyPlayerName, enemyCoord: ev.coord, enemyName: ev.name,
-              reservation: resTableVal, friendCoord: item.tv.coord, friendName: item.tv.name,
-              distance: item.dist.toFixed(1), owner: item.owner
-            });
           });
         }
 
@@ -695,6 +696,9 @@ javascript:(function(){
         
         window.scannedEnemyData.push({
           coord: ev.coord,
+          enemyPlayer: enemyPlayerName,
+          enemyName: ev.name,
+          reservation: resTableVal,
           isReserved: isReservedFlag,
           hasNobles: hasNoblesFlag,
           htmlBlock: blockHtml
@@ -703,7 +707,7 @@ javascript:(function(){
 
       renderScanResults();
 
-      if(window.lastScanTableData.length > 0) {
+      if(window.scannedEnemyData.length > 0) {
         $('#twMakePlanBtn, #twCopyTableBtn').show();
       }
     }).fail(function(){
@@ -769,27 +773,72 @@ javascript:(function(){
     $('#twPlanOutputContainer').hide();
   });
 
-  // Кнопка копирования для Google Таблиц
+  // Кнопка копирования для Google Таблиц (с динамическим захватом введенных значений Оффа и Дворов)
   $('#twCopyTableBtn').click(function(){
-    if(!window.lastScanTableData || window.lastScanTableData.length === 0) {
+    if(!window.scannedEnemyData || window.scannedEnemyData.length === 0) {
       alert('Нет данных для копирования!');
       return;
     }
-    let tsvRows = ["Ник врага\tКоординаты врага\tНазвание врага\tСтатус брони\tКоординаты свои\tНазвание свое\tРасстояние\tИгрок"];
-    window.lastScanTableData.forEach(row => {
-      tsvRows.push(`${row.enemyPlayer}\t${row.enemyCoord}\t${row.enemyName}\t${row.reservation}\t${row.friendCoord}\t${row.friendName}\t${row.distance}\t${row.owner}`);
+
+    let tsvRows = ["Ник врага\tКоординаты врага\tНазвание врага\tСтатус брони\tКоординаты свои\tНазвание свое\tРасстояние\tИгрок\tОфф\tДвор"];
+    let exportedCount = 0;
+
+    $('#twScanResults > div').each(function(){
+      let $block = $(this);
+      let enemyChk = $block.find('.enemy-village-chk').first();
+      
+      if(enemyChk.length && enemyChk.is(':checked')) {
+        let targetCoord = $block.attr('data-target-coord');
+        let enemyData = window.scannedEnemyData.find(d => d.coord === targetCoord);
+        
+        if(enemyData) {
+          $block.find('.own-village-chk').each(function(){
+            if($(this).is(':checked')) {
+              let container = $(this).closest('div');
+              let friendLabelText = container.find('label').text();
+              let matchCoord = friendLabelText.match(coordinateRegex);
+              
+              if(matchCoord) {
+                let friendCoord = matchCoord[0];
+                let friendName = friendLabelText.split('(')[0].trim().replace(/^\d+\.\s*/, '');
+                
+                // Извлекаем ник игрока своих из скобок
+                let ownerMatch = friendLabelText.match(/\(Игрок:\s*([^)]+)\)/);
+                let friendOwner = ownerMatch ? ownerMatch[1] : 'Неизвестно';
+                
+                // Извлекаем расстояние
+                let distMatch = friendLabelText.match(/—\s*<b>([\d.,]+)\s*п\.<\/b>/);
+                let distanceVal = distMatch ? distMatch[1] : '';
+
+                // Считываем текущие значения Оффа и Дворов из полей ввода справа
+                let offVal = container.find('.nearby-off-input').val() || '0';
+                let nobleVal = container.find('.nearby-noble-input').val() || '0';
+
+                tsvRows.push(`${enemyData.enemyPlayer}\t${enemyData.coord}\t${enemyData.enemyName}\t${enemyData.reservation}\t${friendCoord}\t${friendName}\t${distanceVal}\t${friendOwner}\t${offVal}\t${nobleVal}`);
+                exportedCount++;
+              }
+            }
+          });
+        }
+      }
     });
+
+    if(exportedCount === 0) {
+      alert('⚠️ Вы не выбрали ни одной строки галочками для копирования!');
+      return;
+    }
+
     let tsvText = tsvRows.join('\n');
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(tsvText).then(() => {
-        alert('✅ Данные скопированы! Вставьте их (Ctrl+V) в первую ячейку Google Таблицы.');
+        alert(`✅ Успешно скопировано строк: ${exportedCount}! Вставьте их (Ctrl+V) в первую ячейку Google Таблицы.`);
       });
     } else {
       let ta = document.createElement('textarea');
       ta.value = tsvText; document.body.appendChild(ta); ta.select();
       document.execCommand('copy'); document.body.removeChild(ta);
-      alert('✅ Данные скопированы в буфер обмена!');
+      alert(`✅ Скопировано строк: ${exportedCount}!`);
     }
   });
 })();
