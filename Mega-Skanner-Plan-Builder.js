@@ -190,11 +190,8 @@ javascript:(function(){
     }();
   }
 
-  const version = 'v6.2 (Scanner + Plan Builder & Checkboxes)';
+  const version = 'v6.9 (Clean Inputs)';
   let storedVillageList = {};
-  let nobles = [];
-  let offs = [];
-  let defs = [];
   const coordinateRegex = /\d{1,3}\|\d{1,3}/g;
 
   let globalDraggingState = { isDragging: false, targetWin: null, startX: 0, startY: 0, startLeft: 0, startTop: 0 };
@@ -215,15 +212,15 @@ javascript:(function(){
         const dy = e.clientY - globalResizingState.startY;
         const dir = globalResizingState.resizeDir;
 
-        if (dir.includes('right')) { activeContainer.style.width = `${Math.max(400, globalResizingState.startWidth + dx)}px`; activeContainer.style.maxWidth = 'none'; }
-        if (dir.includes('bottom')) { activeContainer.style.height = `${Math.max(350, globalResizingState.startHeight + dy)}px`; activeContainer.style.maxHeight = 'none'; }
+        if (dir.includes('right')) { activeContainer.style.width = `${Math.max(500, globalResizingState.startWidth + dx)}px`; activeContainer.style.maxWidth = 'none'; }
+        if (dir.includes('bottom')) { activeContainer.style.height = `${Math.max(450, globalResizingState.startHeight + dy)}px`; activeContainer.style.maxHeight = 'none'; }
         if (dir.includes('left')) {
           const newWidth = globalResizingState.startWidth - dx;
-          if (newWidth >= 400) { activeContainer.style.width = `${newWidth}px`; activeContainer.style.left = `${globalResizingState.startLeft + dx}px`; activeContainer.style.maxWidth = 'none'; }
+          if (newWidth >= 500) { activeContainer.style.width = `${newWidth}px`; activeContainer.style.left = `${globalResizingState.startLeft + dx}px`; activeContainer.style.maxWidth = 'none'; }
         }
         if (dir.includes('top')) {
           const newHeight = globalResizingState.startHeight - dy;
-          if (newHeight >= 350) { activeContainer.style.height = `${newHeight}px`; activeContainer.style.top = `${globalResizingState.startTop + dy}px`; activeContainer.style.maxHeight = 'none'; }
+          if (newHeight >= 450) { activeContainer.style.height = `${newHeight}px`; activeContainer.style.top = `${globalResizingState.startTop + dy}px`; activeContainer.style.maxHeight = 'none'; }
         }
       }
     });
@@ -282,63 +279,21 @@ javascript:(function(){
   };
   loadVillageData();
 
-  const getTroopsFor = (html, unitType) => {
-    const dorpIndex = $(html).find(`#combined_table th:contains("${window.lang['abc63490c815af81276f930216c8d92b']}")`).index();
-    const unitIndex = $(html).find('#combined_table').find(`img[src*="${unitType}"]`).closest('th').index();
-
-    let troopInfo = $(html).find('#combined_table tr.nowrap').map((_, r) => {
-      return `${$(r).find(`td:eq(${dorpIndex})`).text().match(coordinateRegex).pop()},${$(r).find(`td:eq(${unitIndex})`).text()}`;
-    }).get();
-    return troopInfo.filter(r => parseInt(r.split(',')[1], 10) > 0);
-  };
-
-  const loadOverview = async (mode) => {
-    let villages = [];
-    const getOverviewInfo = (mode, page) => new Promise((resolve) => {
-      resolve(twLib.get(`${game_data.link_base_pure}overview_villages&mode=${mode}&group=0&page=${page}&`));
-    });
-
-    await getOverviewInfo(mode, -1).then(async (html) => {
-      $.merge(villages, $(html));
-      const $navOptions = $('.paged-nav-item', html).parent().find('option');
-      const pages = $navOptions.length ? $navOptions.length - 1 : $('.paged-nav-item', html).length;
-      const villagesPerPage = Number($('[name=page_size]', html).val()) || 100;
-      const startingPage = Math.floor(1000 / villagesPerPage);
-
-      for (let x = startingPage; x < pages; x++) {
-        await getOverviewInfo(mode, x).then((html) => {
-          $.merge(villages, $(html));
-        });
-      }
-    });
-    return villages;
-  };
-
-  async function initTroops() {
-    try {
-      const combinedHtml = await loadOverview('combined');
-      nobles = getTroopsFor(combinedHtml, 'snob');
-      offs = getTroopsFor(combinedHtml, 'axe');
-      defs = getTroopsFor(combinedHtml, 'spear');
-    } catch(e) {}
-  }
-  initTroops();
-
   $('#twAdvancedScannerWin').remove();
 
   let savedEnemy = localStorage.getItem(`tw_scanner_enemy_${game_data.world}`) || '';
   let savedOwn = localStorage.getItem(`tw_scanner_own_${game_data.world}`) || '';
   let savedTop = localStorage.getItem(`tw_scanner_top_${game_data.world}`) || '3';
   let savedMaxDist = localStorage.getItem(`tw_scanner_maxdist_${game_data.world}`) || '';
-  let savedOffCount = localStorage.getItem(`tw_scanner_offcount_${game_data.world}`) || '1';
-  let savedMaxHours = localStorage.getItem(`tw_scanner_maxhours_${game_data.world}`) || '34';
   let savedFetchCmds = localStorage.getItem(`tw_scanner_fetchcmds_${game_data.world}`) !== 'false';
   let savedAttacks = localStorage.getItem(`tw_scanner_attacks_${game_data.world}`) !== 'false';
   let savedSupports = localStorage.getItem(`tw_scanner_supports_${game_data.world}`) !== 'false';
   let savedReturns = localStorage.getItem(`tw_scanner_returns_${game_data.world}`) !== 'false';
+  let savedHideReservations = localStorage.getItem(`tw_scanner_hidereservations_${game_data.world}`) === 'true';
+  let savedNobleSearch = localStorage.getItem(`tw_scanner_noblesearch_${game_data.world}`) !== 'false';
 
   let panelHtml = `
-  <div id="twAdvancedScannerWin" style="position:fixed; top:50px; left:100px; z-index:99999; background:#f4e4bc; border:2px solid #7d510f; width:880px; height:700px; box-shadow:0 0 15px rgba(0,0,0,0.5); display:flex; flex-direction:column; border-radius:6px; font-family:Verdana; font-size:11px;">
+  <div id="twAdvancedScannerWin" style="position:fixed; top:40px; left:60px; z-index:99999; background:#f4e4bc; border:2px solid #7d510f; width:940px; height:780px; box-shadow:0 0 15px rgba(0,0,0,0.5); display:flex; flex-direction:column; border-radius:6px; font-family:Verdana; font-size:11px;">
       <div class="resize-handle resize-top" style="position:absolute; top:-8px; left:0; right:0; height:16px; cursor:n-resize; z-index:999999;"></div>
       <div class="resize-handle resize-bottom" style="position:absolute; bottom:-8px; left:0; right:0; height:16px; cursor:s-resize; z-index:999999;"></div>
       <div class="resize-handle resize-left" style="position:absolute; top:0; bottom:0; left:-8px; width:16px; cursor:w-resize; z-index:999999;"></div>
@@ -353,10 +308,12 @@ javascript:(function(){
           <button class="btn btn-default" onclick="$('#twAdvancedScannerWin').remove();" style="padding:2px 6px; font-weight:bold; background:#d9534f; color:#fff; border:1px solid #b52b27; cursor:pointer;">✕</button>
       </div>
 
-      <div style="padding:10px; flex-grow:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
-          <div style="background:#fff8e8; border:1px solid #d8c29d; padding:6px 10px; border-radius:4px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:space-between;">
-              <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+      <div style="padding:10px; flex-grow:1; overflow:hidden; display:flex; flex-direction:column; gap:8px;">
+          <div style="background:#fff8e8; border:1px solid #d8c29d; padding:6px 10px; border-radius:4px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:space-between; flex-shrink:0;">
+              <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                   <span>Кэш деревень: <b id="twCacheCount" style="color:#8c6723;">${Object.keys(storedVillageList).length}</b></span>
+                  <label style="cursor:pointer; color:#b71c1c;"><input type="checkbox" id="twHideReservations" ${savedHideReservations?'checked':''}> Убрать бронь</label>
+                  <label style="cursor:pointer; color:#7d0f0f;"><input type="checkbox" id="twNobleSearch" ${savedNobleSearch?'checked':''}> Поиск атак дворянином</label>
                   <label style="cursor:pointer; font-weight:bold; color:#5b3511;"><input type="checkbox" id="twFetchCmds" ${savedFetchCmds?'checked':''}> Приказы</label>
                   <label style="cursor:pointer; color:#2e7d32;"><input type="checkbox" id="twShowAttacks" ${savedAttacks?'checked':''}> 🟢 Атаки</label>
                   <label style="cursor:pointer; color:#1565c0;"><input type="checkbox" id="twShowSupports" ${savedSupports?'checked':''}> 🔵 Подкреп</label>
@@ -365,7 +322,7 @@ javascript:(function(){
               <button id="twClearInputsBtn" style="background:#d9534f; color:#fff; border:1px solid #b52b27; padding:2px 8px; cursor:pointer; font-size:10px; font-weight:bold;">🗑️ Очистить выбор</button>
           </div>
 
-          <div style="display:flex; gap:8px;">
+          <div style="display:flex; gap:8px; flex-shrink:0;">
               <div style="flex:1;">
                   <label><b>Враги (ники или племена через запятую):</b></label><br>
                   <input type="text" id="twEnemyInput" value="${savedEnemy}" style="width:100%; padding:3px;" placeholder="например: BadGuy, [GO]">
@@ -376,7 +333,7 @@ javascript:(function(){
               </div>
           </div>
 
-          <div style="display:flex; gap:8px;">
+          <div style="display:flex; gap:8px; flex-shrink:0;">
               <div style="flex:1;">
                   <label><b>Топ ближайших своих:</b></label><br>
                   <input type="number" id="twTopLimit" value="${savedTop}" min="1" max="10" style="width:100%; padding:3px;">
@@ -385,30 +342,29 @@ javascript:(function(){
                   <label><b>Макс. расстояние (клеток):</b></label><br>
                   <input type="number" id="twMaxDist" value="${savedMaxDist}" placeholder="без лимита" style="width:100%; padding:3px;">
               </div>
-              <div style="flex:1;">
-                  <label><b>Кол-во атак оффа на цель:</b></label><br>
-                  <input type="number" id="twOffCount" value="${savedOffCount}" min="1" style="width:100%; padding:3px;">
-              </div>
-              <div style="flex:1;">
-                  <label><b>Длительность хода (часы):</b></label><br>
-                  <input type="number" id="twMaxHours" value="${savedMaxHours}" min="1" style="width:100%; padding:3px;">
-              </div>
           </div>
 
-          <div style="display:flex; gap:6px;">
+          <div style="display:flex; gap:6px; flex-shrink:0;">
               <button id="twStartScanBtn" style="flex:2; background:#7d0f0f; color:#fff; border:1px solid #4a0606; padding:6px; cursor:pointer; font-weight:bold;">🚀 Запустить сканирование</button>
               <button id="twMakePlanBtn" style="flex:2; background:#b26a00; color:#fff; border:1px solid #6b3e00; padding:6px; cursor:pointer; font-weight:bold; display:none;">📋 Составить план</button>
               <button id="twCopyTableBtn" style="flex:2; background:#2e7d32; color:#fff; border:1px solid #1b4e1f; padding:6px; cursor:pointer; font-weight:bold; display:none;">📋 Копировать в Таблицы</button>
           </div>
 
-          <div id="twScanResults" style="background:#fff; border:1px solid #7d510f; padding:8px; flex-grow:1; min-height:180px; overflow-y:auto;">
+          <!-- Область результатов сканирования -->
+          <div id="twScanResults" style="background:#fff; border:1px solid #7d510f; padding:8px; flex-grow:1; overflow-y:auto; border-radius:4px;">
               Настройте цели и нажмите запуск сканирования.
           </div>
 
           <!-- Окно плана внизу -->
-          <div id="twPlanOutputContainer" style="background:#fffde8; border:1px solid #7d510f; padding:8px; display:none; max-height:160px; overflow-y:auto;">
-              <b style="color:#5b3511;">📝 Сформированный план атак:</b>
-              <div id="twPlanOutputText" style="font-size:10px; margin-top:4px;"></div>
+          <div id="twPlanOutputContainer" style="background:#fffde8; border:1px solid #7d510f; padding:8px; display:none; height:180px; flex-shrink:0; display:flex; flex-direction:column; border-radius:4px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; flex-shrink:0;">
+                  <b style="color:#5b3511;">📝 Сформированный план атак:</b>
+                  <div style="display:flex; gap:6px;">
+                      <button id="twCopyPlanBtn" style="background:#2e7d32; color:#fff; border:1px solid #1b4e1f; padding:3px 10px; cursor:pointer; font-weight:bold; font-size:10px;">📋 Копировать план</button>
+                      <button id="twClearPlanBtn" style="background:#d9534f; color:#fff; border:1px solid #b52b27; padding:3px 10px; cursor:pointer; font-weight:bold; font-size:10px;">🗑️ Очистить</button>
+                  </div>
+              </div>
+              <textarea id="twPlanOutputText" style="width:100%; flex-grow:1; font-family:monospace; font-size:11px; padding:4px; resize:none; border:1px solid #d8c29d;" readonly></textarea>
           </div>
       </div>
   </div>`;
@@ -417,37 +373,76 @@ javascript:(function(){
   makeWindowInteractive('twAdvancedScannerWin', 'twScannerHeader');
 
   window.lastScanTableData = [];
+  window.scannedEnemyData = [];
 
   function saveStateToStorage() {
     localStorage.setItem(`tw_scanner_enemy_${game_data.world}`, $('#twEnemyInput').val());
     localStorage.setItem(`tw_scanner_own_${game_data.world}`, $('#twOwnInput').val());
     localStorage.setItem(`tw_scanner_top_${game_data.world}`, $('#twTopLimit').val());
     localStorage.setItem(`tw_scanner_maxdist_${game_data.world}`, $('#twMaxDist').val());
-    localStorage.setItem(`tw_scanner_offcount_${game_data.world}`, $('#twOffCount').val());
-    localStorage.setItem(`tw_scanner_maxhours_${game_data.world}`, $('#twMaxHours').val());
     localStorage.setItem(`tw_scanner_fetchcmds_${game_data.world}`, $('#twFetchCmds').is(':checked'));
     localStorage.setItem(`tw_scanner_attacks_${game_data.world}`, $('#twShowAttacks').is(':checked'));
     localStorage.setItem(`tw_scanner_supports_${game_data.world}`, $('#twShowSupports').is(':checked'));
     localStorage.setItem(`tw_scanner_returns_${game_data.world}`, $('#twShowReturns').is(':checked'));
+    localStorage.setItem(`tw_scanner_hidereservations_${game_data.world}`, $('#twHideReservations').is(':checked'));
+    localStorage.setItem(`tw_scanner_noblesearch_${game_data.world}`, $('#twNobleSearch').is(':checked'));
   }
 
-  $('#twAdvancedScannerWin input').on('input change', saveStateToStorage);
+  $('#twAdvancedScannerWin input').on('input change', function() {
+    saveStateToStorage();
+    if($(this).attr('id') === 'twHideReservations' || $(this).attr('id') === 'twNobleSearch') {
+      renderScanResults();
+    }
+  });
 
   $('#twClearInputsBtn').click(function() {
     $('#twEnemyInput').val('');
     $('#twOwnInput').val('');
     $('#twTopLimit').val('3');
     $('#twMaxDist').val('');
-    $('#twOffCount').val('1');
-    $('#twMaxHours').val('34');
     $('#twFetchCmds').prop('checked', true);
     $('#twShowAttacks').prop('checked', true);
     $('#twShowSupports').prop('checked', true);
     $('#twShowReturns').prop('checked', true);
+    $('#twHideReservations').prop('checked', false);
+    $('#twNobleSearch').prop('checked', true);
     localStorage.clear();
     $('#twScanResults').html('Настройки очищены.');
-    $('#twMakePlanBtn, #twCopyTableBtn, #twPlanOutputContainer').hide();
+    $('#twMakePlanBtn, #twCopyTableBtn').hide();
+    $('#twPlanOutputContainer').hide();
   });
+
+  function renderScanResults() {
+    let $resBox = $('#twScanResults');
+    if (!window.scannedEnemyData || window.scannedEnemyData.length === 0) {
+      $resBox.html('Нет данных сканирования.');
+      return;
+    }
+
+    let hideReservations = $('#twHideReservations').is(':checked');
+    let nobleSearch = $('#twNobleSearch').is(':checked');
+
+    let outputHtml = `<b>📊 Найдено деревень врага: ${window.scannedEnemyData.length}</b><br><br>`;
+    let displayedCount = 0;
+
+    window.scannedEnemyData.forEach(item => {
+      if (hideReservations && item.isReserved) {
+        return;
+      }
+      if (!nobleSearch && item.hasNobles) {
+        return;
+      }
+
+      displayedCount++;
+      outputHtml += item.htmlBlock;
+    });
+
+    if (displayedCount === 0) {
+      outputHtml += `<i>Нет целей для отображения по заданным фильтрам.</i>`;
+    }
+
+    $resBox.html(outputHtml);
+  }
 
   // Запуск сканирования
   $('#twStartScanBtn').click(async function(){
@@ -474,7 +469,9 @@ javascript:(function(){
     
     $resBox.html('🔄 Загрузка данных с сервера игры...');
     $('#twMakePlanBtn, #twCopyTableBtn').hide();
+    $('#twPlanOutputContainer').hide();
     window.lastScanTableData = [];
+    window.scannedEnemyData = [];
 
     let mapBase = location.origin + '/map/';
     let sitterParam = typeof window.sitter_id !== 'undefined' && window.sitter_id ? `t=${window.sitter_id}&` : '';
@@ -578,9 +575,6 @@ javascript:(function(){
         return;
       }
 
-      let outputHtml = `<b>📊 Найдено деревень врага: ${enemyVillages.length}</b><br><br>`;
-      $resBox.html(outputHtml);
-
       let ownVillagesList = [];
       vText.split('\n').forEach(line => {
         if(!line.trim()) return;
@@ -595,13 +589,13 @@ javascript:(function(){
         let enemyOwnerObj = playersMap[ev.playerId];
         let enemyPlayerName = enemyOwnerObj ? enemyOwnerObj.name : 'Неизвестно';
         let resInfo = reservationsMap[ev.coord];
+        let isReservedFlag = !!resInfo;
         let resText = resInfo ? ` <b style="color:red;">[🔒 Бронь: ${resInfo.claimant} до ${resInfo.expires}]</b>` : '';
         let resTableVal = resInfo ? `Забронирован: ${resInfo.claimant} (до ${resInfo.expires})` : "Свободна";
 
-        // Чекбокс напротив деревни врага
         let blockHtml = `<div style="border-bottom:1px solid #c1a264; padding:6px 0; margin-bottom:6px;" data-target-coord="${ev.coord}">
             <label style="cursor:pointer; font-weight:bold; color:#7d0f0f;">
-              <input type="checkbox" class="enemy-village-chk" checked style="vertical-align:-2px; margin-right:4px;">
+              <input type="checkbox" class="enemy-village-chk" style="vertical-align:-2px; margin-right:4px;">
               🎯 [Враг: ${enemyPlayerName}] Деревня: ${ev.name} (${ev.coord})
             </label>${resText}<br>`;
 
@@ -619,8 +613,13 @@ javascript:(function(){
           blockHtml += `&nbsp;&nbsp;<i>Нет своих деревень в радиусе.</i><br>`;
         } else {
           topList.forEach((item, idx) => {
-            // Чекбокс напротив своей деревни / игрока
-            blockHtml += `&nbsp;&nbsp;<label style="cursor:pointer;"><input type="checkbox" class="own-village-chk" checked style="vertical-align:-2px; margin-right:3px;"> ${idx+1}. ${item.tv.name} (${item.tv.coord}) — <b>${item.dist.toFixed(1)} п.</b> (Игрок: ${item.owner})</label><br>`;
+            blockHtml += `<div style="display:flex; justify-content:space-between; align-items:center; margin:2px 0 2px 15px; background:#fffcf2; padding:3px 6px; border:1px solid #ebd9b5; border-radius:3px;">
+              <label style="cursor:pointer; flex-grow:1;"><input type="checkbox" class="own-village-chk" style="vertical-align:-2px; margin-right:3px;"> ${idx+1}. ${item.tv.name} (${item.tv.coord}) — <b>${item.dist.toFixed(1)} п.</b> (Игрок: ${item.owner})</label>
+              <div style="display:flex; gap:6px; align-items:center; font-size:10px;">
+                <span>Офф: <input type="number" class="nearby-off-input" value="0" min="0" style="width:45px; text-align:center; padding:1px;"></span>
+                <span>Двор: <input type="number" class="nearby-noble-input" value="0" min="0" style="width:35px; text-align:center; padding:1px;"></span>
+              </div>
+            </div>`;
             
             window.lastScanTableData.push({
               enemyPlayer: enemyPlayerName, enemyCoord: ev.coord, enemyName: ev.name,
@@ -629,6 +628,8 @@ javascript:(function(){
             });
           });
         }
+
+        let hasNoblesFlag = false;
 
         if(fetchCommandsFlag) {
           try {
@@ -645,6 +646,12 @@ javascript:(function(){
                 let isSupport = $r.find('img[src*="support"]').length > 0 || textContent.includes('Подкрепление');
                 let isReturn = $r.find('img[src*="return_"], img[src*="back"], img[src*="farm"]').length > 0 || textContent.includes('возвращается') || textContent.includes('return');
                 
+                let isNobleAttack = $r.find('img[src*="unit/snob"], img[src*="snob"]').length > 0;
+
+                if (isNobleAttack) {
+                  hasNoblesFlag = true;
+                }
+
                 if (isReturn && !showReturns) { $r.remove(); return; }
                 if (isSupport && !showSupports) { $r.remove(); return; }
                 if (!isSupport && !isReturn && !showAttacks) { $r.remove(); return; }
@@ -661,16 +668,13 @@ javascript:(function(){
 
                 $r.append(`
                   <td style="position: relative; padding-bottom: 4px;">
-                    <div style="margin-bottom: 2px;"><input class="nobleAmount" style="width: 32px; text-align: center;" type="number" value="0" min="0"></div>
-                    <div class="inline-villages-container" style="display: none; margin-top: 4px; background: #fffde8; border: 1px solid #7d510f; padding: 4px; border-radius: 3px; max-height: 120px; overflow-y: auto;"></div>
+                    <div style="margin-bottom: 2px;"><input class="nobleAmount" style="width: 32px; text-align: center;" type="number" value="${isNobleAttack ? 1 : 0}" min="0"></div>
                   </td>
                   <td style="position: relative; padding-bottom: 4px;">
                     <div style="margin-bottom: 2px;"><input class="offAmount" style="width: 40px; text-align: center;" type="number" value="0" min="0"></div>
-                    <div class="inline-villages-container" style="display: none; margin-top: 4px; background: #fffde8; border: 1px solid #7d510f; padding: 4px; border-radius: 3px; max-height: 120px; overflow-y: auto;"></div>
                   </td>
                   <td style="position: relative; padding-bottom: 4px;">
                     <div style="margin-bottom: 2px;"><input class="defAmount" style="width: 40px; text-align: center;" type="number" value="0" min="0"></div>
-                    <div class="inline-villages-container" style="display: none; margin-top: 4px; background: #fffde8; border: 1px solid #7d510f; padding: 4px; border-radius: 3px; max-height: 120px; overflow-y: auto;"></div>
                   </td>
                 `);
               });
@@ -688,8 +692,16 @@ javascript:(function(){
         }
 
         blockHtml += `</div>`;
-        $resBox.append(blockHtml);
+        
+        window.scannedEnemyData.push({
+          coord: ev.coord,
+          isReserved: isReservedFlag,
+          hasNobles: hasNoblesFlag,
+          htmlBlock: blockHtml
+        });
       }
+
+      renderScanResults();
 
       if(window.lastScanTableData.length > 0) {
         $('#twMakePlanBtn, #twCopyTableBtn').show();
@@ -701,9 +713,7 @@ javascript:(function(){
 
   // Кнопка «Составить план»
   $('#twMakePlanBtn').click(function(){
-    let offCount = $('#twOffCount').val();
-    let maxHours = $('#twMaxHours').val();
-    let planLines = [`<b>Параметры плана:</b> Оффов на цель: ${offCount} | Лимит времени: ${maxHours} ч.<br><hr>`];
+    let planLines = [`<b>Параметры плана:</b>\n-----------------------------------`];
     
     let selectedCount = 0;
     $('#twScanResults > div').each(function(){
@@ -711,16 +721,19 @@ javascript:(function(){
       let enemyChk = $block.find('.enemy-village-chk').first();
       if(enemyChk.length && enemyChk.is(':checked')) {
         let enemyText = $block.find('label').first().text().trim();
-        planLines.push(`<b>${enemyText}</b>`);
+        planLines.push(`Цель: ${enemyText}`);
         
         $block.find('.own-village-chk').each(function(){
           if($(this).is(':checked')) {
-            let friendText = $(this).parent().text().trim();
-            planLines.push(`&nbsp;&nbsp;➔ Выбрана своя: ${friendText}`);
+            let container = $(this).closest('div');
+            let friendText = container.find('label').text().trim();
+            let customOff = container.find('.nearby-off-input').val() || 0;
+            let customNoble = container.find('.nearby-noble-input').val() || 0;
+            planLines.push(`   ➔ Своя: ${friendText} [Офф: ${customOff}, Двор: ${customNoble}]`);
             selectedCount++;
           }
         });
-        planLines.push('<br>');
+        planLines.push('');
       }
     });
 
@@ -729,9 +742,31 @@ javascript:(function(){
       return;
     }
 
-    $('#twPlanOutputText').html(planLines.join('<br>'));
+    $('#twPlanOutputText').val(planLines.join('\n'));
     $('#twPlanOutputContainer').show();
     alert('✅ План успешно составлен!');
+  });
+
+  // Кнопки управления планом внизу
+  $('#twCopyPlanBtn').click(function(){
+    let text = $('#twPlanOutputText').val();
+    if(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => alert('✅ План скопирован в буфер обмена!'));
+      } else {
+        let ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+        alert('✅ План скопирован в буфер обмена!');
+      }
+    } else {
+      alert('План пуст!');
+    }
+  });
+
+  $('#twClearPlanBtn').click(function(){
+    $('#twPlanOutputText').val('');
+    $('#twPlanOutputContainer').hide();
   });
 
   // Кнопка копирования для Google Таблиц
