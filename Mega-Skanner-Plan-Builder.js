@@ -190,7 +190,7 @@ javascript:(function(){
     }();
   }
 
-  const version = 'v7.1 (Export with Off & Noble inputs)';
+  const version = 'v7.7 (Clean Syntax)';
   let storedVillageList = {};
   const coordinateRegex = /\d{1,3}\|\d{1,3}/g;
 
@@ -373,7 +373,6 @@ javascript:(function(){
   $('body').append(panelHtml);
   makeWindowInteractive('twAdvancedScannerWin', 'twScannerHeader');
 
-  window.lastScanTableData = [];
   window.scannedEnemyData = [];
 
   function saveStateToStorage() {
@@ -498,15 +497,17 @@ javascript:(function(){
 
       let reservationsMap = {};
       $(resHtml).find('tr[id^="reservation_"]').each(function(){
-        let rowText = $(this).text();
-        let coordMatch = rowText.match(/(\d{3}\|\d{3})/);
-        if(coordMatch) {
-          let coord = coordMatch[1];
-          let tds = $(this).find('td');
-          let claimantPlayer = tds.eq(3).find('a').last().text().trim();
-          let claimantAlly = tds.eq(3).find('a').first().text().trim();
-          let expires = tds.eq(4).text().trim();
-          reservationsMap[coord] = { claimant: claimantPlayer, ally: claimantAlly.startsWith('[') ? claimantAlly : '', expires: expires };
+        let $row = $(this);
+        let tds = $row.find('td');
+        if(tds.length >= 5) {
+          let villageLinkText = tds.eq(0).find('a').first().text();
+          let coordMatch = villageLinkText.match(coordinateRegex);
+          if(coordMatch) {
+            let coord = coordMatch[0];
+            let claimantCellText = tds.eq(3).text().replace(/\s+/g, ' ').trim();
+            let expires = tds.eq(4).text().trim();
+            reservationsMap[coord] = { claimant: claimantCellText, expires: expires };
+          }
         }
       });
 
@@ -597,14 +598,21 @@ javascript:(function(){
         let enemyPlayerName = enemyOwnerObj ? enemyOwnerObj.name : 'Неизвестно';
         let resInfo = reservationsMap[ev.coord];
         let isReservedFlag = !!resInfo;
+        
         let resText = resInfo ? ` <b style="color:red;">[🔒 Бронь: ${resInfo.claimant} до ${resInfo.expires}]</b>` : '';
         let resTableVal = resInfo ? `Забронирован: ${resInfo.claimant} (до ${resInfo.expires})` : "Свободна";
 
+        let villageInfoUrl = `${game_data.link_base_pure}info_village&id=${ev.id}`;
+
         let blockHtml = `<div style="border-bottom:1px solid #c1a264; padding:6px 0; margin-bottom:6px;" data-target-coord="${ev.coord}">
-            <label style="cursor:pointer; font-weight:bold; color:#7d0f0f;">
-              <input type="checkbox" class="enemy-village-chk" style="vertical-align:-2px; margin-right:4px;">
-              🎯 [Враг: ${enemyPlayerName}] Деревня: ${ev.name} (${ev.coord})
-            </label>${resText}<br>`;
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label style="cursor:pointer; font-weight:bold; color:#7d0f0f;">
+                <input type="checkbox" class="enemy-village-chk" style="vertical-align:-2px; margin-right:4px;">
+                🎯 [Враг: ${enemyPlayerName}] Деревня: ${ev.name} (${ev.coord})
+              </label>
+              <a href="${villageInfoUrl}" target="_blank" style="background:#8c6723; color:#fff; padding:2px 6px; border-radius:3px; text-decoration:none; font-size:10px; font-weight:bold;" title="Открыть смотр деревни">🔍 Смотр</a>
+            </div>
+            ${resText}<br>`;
 
         let distances = ownVillagesList.map(tv => {
           let dist = Math.sqrt(Math.pow(ev.x - tv.x, 2) + Math.pow(ev.y - tv.y, 2));
@@ -634,7 +642,7 @@ javascript:(function(){
 
         if(fetchCommandsFlag) {
           try {
-            let infoHtml = await twLib.get({url: `${game_data.link_base_pure}info_village&id=${ev.id}`});
+            let infoHtml = await twLib.get({url: villageInfoUrl});
             let commandsTable = $(infoHtml).find('.commands-container');
             
             if(commandsTable.length && commandsTable.find('tr.command-row').length > 0) {
@@ -773,7 +781,7 @@ javascript:(function(){
     $('#twPlanOutputContainer').hide();
   });
 
-  // Кнопка копирования для Google Таблиц (с динамическим захватом введенных значений Оффа и Дворов)
+  // Кнопка копирования для Google Таблиц
   $('#twCopyTableBtn').click(function(){
     if(!window.scannedEnemyData || window.scannedEnemyData.length === 0) {
       alert('Нет данных для копирования!');
@@ -802,15 +810,12 @@ javascript:(function(){
                 let friendCoord = matchCoord[0];
                 let friendName = friendLabelText.split('(')[0].trim().replace(/^\d+\.\s*/, '');
                 
-                // Извлекаем ник игрока своих из скобок
                 let ownerMatch = friendLabelText.match(/\(Игрок:\s*([^)]+)\)/);
                 let friendOwner = ownerMatch ? ownerMatch[1] : 'Неизвестно';
                 
-                // Извлекаем расстояние
                 let distMatch = friendLabelText.match(/—\s*<b>([\d.,]+)\s*п\.<\/b>/);
                 let distanceVal = distMatch ? distMatch[1] : '';
 
-                // Считываем текущие значения Оффа и Дворов из полей ввода справа
                 let offVal = container.find('.nearby-off-input').val() || '0';
                 let nobleVal = container.find('.nearby-noble-input').val() || '0';
 
