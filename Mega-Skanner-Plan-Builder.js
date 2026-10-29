@@ -190,7 +190,7 @@ javascript:(function(){
     }();
   }
 
-  const version = 'v7.7 (Clean Syntax)';
+  const version = 'v8.6 (Exact Mail Table Order)';
   let storedVillageList = {};
   const coordinateRegex = /\d{1,3}\|\d{1,3}/g;
 
@@ -357,15 +357,16 @@ javascript:(function(){
           </div>
 
           <!-- Окно плана внизу -->
-          <div id="twPlanOutputContainer" style="background:#fffde8; border:1px solid #7d510f; padding:8px; display:none; height:180px; flex-shrink:0; display:flex; flex-direction:column; border-radius:4px;">
+          <div id="twPlanOutputContainer" style="background:#fffde8; border:1px solid #7d510f; padding:8px; display:none; height:230px; flex-shrink:0; display:flex; flex-direction:column; border-radius:4px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; flex-shrink:0;">
-                  <b style="color:#5b3511;">📝 Сформированный план атак:</b>
+                  <b style="color:#5b3511;">📝 Сформированный план атак (BB-коды и чистая тема):</b>
                   <div style="display:flex; gap:6px;">
                       <button id="twCopyPlanBtn" style="background:#2e7d32; color:#fff; border:1px solid #1b4e1f; padding:3px 10px; cursor:pointer; font-weight:bold; font-size:10px;">📋 Копировать план</button>
                       <button id="twClearPlanBtn" style="background:#d9534f; color:#fff; border:1px solid #b52b27; padding:3px 10px; cursor:pointer; font-weight:bold; font-size:10px;">🗑️ Очистить</button>
                   </div>
               </div>
-              <textarea id="twPlanOutputText" style="width:100%; flex-grow:1; font-family:monospace; font-size:11px; padding:4px; resize:none; border:1px solid #d8c29d;" readonly></textarea>
+              <div id="twPlanBoxesArea" style="flex-grow:1; overflow-y:auto; background:#fff; border:1px solid #d8c29d; padding:6px;"></div>
+              <textarea id="twPlanOutputText" style="display:none;"></textarea>
           </div>
       </div>
   </div>`;
@@ -606,7 +607,7 @@ javascript:(function(){
 
         let blockHtml = `<div style="border-bottom:1px solid #c1a264; padding:6px 0; margin-bottom:6px;" data-target-coord="${ev.coord}">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <label style="cursor:pointer; font-weight:bold; color:#7d0f0f;">
+              <label style="cursor:pointer; font-weight:bold; color:#7d0f0f;" data-enemy-name="${enemyPlayerName}" data-village-name="${ev.name}" data-village-coord="${ev.coord}">
                 <input type="checkbox" class="enemy-village-chk" style="vertical-align:-2px; margin-right:4px;">
                 🎯 [Враг: ${enemyPlayerName}] Деревня: ${ev.name} (${ev.coord})
               </label>
@@ -629,7 +630,7 @@ javascript:(function(){
         } else {
           topList.forEach((item, idx) => {
             blockHtml += `<div style="display:flex; justify-content:space-between; align-items:center; margin:2px 0 2px 15px; background:#fffcf2; padding:3px 6px; border:1px solid #ebd9b5; border-radius:3px;">
-              <label style="cursor:pointer; flex-grow:1;"><input type="checkbox" class="own-village-chk" style="vertical-align:-2px; margin-right:3px;"> ${idx+1}. ${item.tv.name} (${item.tv.coord}) — <b>${item.dist.toFixed(1)} п.</b> (Игрок: ${item.owner})</label>
+              <label style="cursor:pointer; flex-grow:1;" data-owner="${item.owner}"><input type="checkbox" class="own-village-chk" style="vertical-align:-2px; margin-right:3px;"> ${idx+1}. ${item.tv.name} (${item.tv.coord}) — <b>${item.dist.toFixed(1)} п.</b> (Игрок: ${item.owner})</label>
               <div style="display:flex; gap:6px; align-items:center; font-size:10px;">
                 <span>Офф: <input type="number" class="nearby-off-input" value="0" min="0" style="width:45px; text-align:center; padding:1px;"></span>
                 <span>Двор: <input type="number" class="nearby-noble-input" value="0" min="0" style="width:35px; text-align:center; padding:1px;"></span>
@@ -723,29 +724,85 @@ javascript:(function(){
     });
   });
 
-  // Кнопка «Составить план»
-  $('#twMakePlanBtn').click(function(){
-    let planLines = [`<b>Параметры плана:</b>\n-----------------------------------`];
+  // Функция автоматического открытия письма: таблица строго в вашем порядке
+  window.twSendLetterToPlayer = function(ownerName, rowsDataArray) {
+    let cleanNick = ownerName.trim();
+    let templateText = "Привет! Вот твои цели на добор:";
     
+    // Формируем таблицу: [Враг] | [Деревня] | [Игрок] | [Войска]
+    let tableCode = "[table]\n";
+    tableCode += "[**]Враг[||]Деревня[||]Игрок[||]Войска[/**]\n";
+    rowsDataArray.forEach(item => {
+      tableCode += `[*][player]${item.enemy}[/player][|][village]${item.toCoord}[/village][|][player]${item.owner}[/player][|]Офф: ${item.off}, Двор: ${item.noble}\n`;
+    });
+    tableCode += "[/table]";
+
+    let fullContent = templateText + "\n\n" + tableCode;
+    let mailSubject = "добор";
+
+    let mailWin = window.open(window.location.origin + '/game.php?screen=mail&mode=new', '_blank');
+    if (!mailWin) {
+      alert("Браузер заблокировал открытие вкладки! Разрешите всплывающие окна.");
+      return;
+    }
+
+    let timer = setInterval(() => {
+      if(!mailWin || mailWin.closed) { clearInterval(timer); return; }
+      try {
+        let doc = mailWin.document;
+        let to = doc.querySelector('input[name="to"]');
+        let sub = doc.querySelector('input[name="subject"]');
+        let txt = doc.querySelector('textarea[name="text"]');
+        
+        if(to && sub && txt) {
+          to.value = cleanNick;
+          sub.value = mailSubject;
+          txt.value = fullContent;
+          [to, sub, txt].forEach(el => el.dispatchEvent(new Event('input', { bubbles: true })));
+          clearInterval(timer);
+        }
+      } catch(e) {}
+    }, 500);
+  };
+
+  // Кнопка «Составить план» (окно сканера без изменений)
+  $('#twMakePlanBtn').click(function(){
+    let playersMap = {};
     let selectedCount = 0;
+
     $('#twScanResults > div').each(function(){
       let $block = $(this);
       let enemyChk = $block.find('.enemy-village-chk').first();
+      
       if(enemyChk.length && enemyChk.is(':checked')) {
-        let enemyText = $block.find('label').first().text().trim();
-        planLines.push(`Цель: ${enemyText}`);
-        
+        let $label = $block.find('label').first();
+        let enemyPlayer = $label.attr('data-enemy-name') || '';
+        let villageCoord = $label.attr('data-village-coord') || '';
+
         $block.find('.own-village-chk').each(function(){
           if($(this).is(':checked')) {
             let container = $(this).closest('div');
-            let friendText = container.find('label').text().trim();
+            let ownerName = container.find('label').attr('data-owner') || 'Неизвестно';
             let customOff = container.find('.nearby-off-input').val() || 0;
             let customNoble = container.find('.nearby-noble-input').val() || 0;
-            planLines.push(`   ➔ Своя: ${friendText} [Офф: ${customOff}, Двор: ${customNoble}]`);
+
+            if(!playersMap[ownerName]) {
+              playersMap[ownerName] = [];
+            }
+
+            let line = `Цель: 🎯 [Враг: [player]${enemyPlayer}[/player]] Деревня: [village]${villageCoord}[/village] ➔  (Игрок: [player]${ownerName}[/player]) [Офф: ${customOff}, Двор: ${customNoble}]`;
+            
+            playersMap[ownerName].push({
+              textLine: line,
+              toCoord: villageCoord,
+              enemy: enemyPlayer,
+              owner: ownerName,
+              off: customOff,
+              noble: customNoble
+            });
             selectedCount++;
           }
         });
-        planLines.push('');
       }
     });
 
@@ -754,9 +811,47 @@ javascript:(function(){
       return;
     }
 
-    $('#twPlanOutputText').val(planLines.join('\n'));
+    let plainTextLines = [];
+    let boxesHtml = '';
+
+    Object.keys(playersMap).sort().forEach(owner => {
+      plainTextLines.push(`План для игрока: ${owner}`);
+      plainTextLines.push(`Привет! Вот твои цели для атак:`);
+      
+      let rowsDataForMail = [];
+      let linesHtml = '';
+
+      playersMap[owner].forEach(item => {
+        plainTextLines.push(item.textLine);
+        linesHtml += `<div>${item.textLine}</div>`;
+        rowsDataForMail.push({
+          toCoord: item.toCoord,
+          enemy: item.enemy,
+          owner: item.owner,
+          off: item.off,
+          noble: item.noble
+        });
+      });
+
+      let rowsJson = encodeURIComponent(JSON.stringify(rowsDataForMail));
+
+      boxesHtml += `<div style="border:1px solid #7d510f; background:#fffcf2; margin-bottom:8px; border-radius:4px; padding:6px;">
+        <div style="background:#e3c696; padding:4px 6px; font-weight:bold; color:#5b3511; border-bottom:1px solid #d8c29d; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+          <span>👤 План для игрока: ${owner} (целей: ${playersMap[owner].length})</span>
+          <button onclick="window.twSendLetterToPlayer('${owner.replace(/'/g, "\\'")}', JSON.parse(decodeURIComponent('${rowsJson}')))" style="background:#7d0f0f; color:#fff; border:1px solid #4a0606; padding:2px 8px; cursor:pointer; font-weight:bold; border-radius:3px; font-size:10px;">✉️ Отправить письмо</button>
+        </div>
+        <div style="font-family:monospace; font-size:11px; line-height:1.4;">
+          ${linesHtml}
+        </div>
+      </div>`;
+
+      plainTextLines.push(``);
+    });
+
+    $('#twPlanOutputText').val(plainTextLines.join('\n'));
+    $('#twPlanBoxesArea').html(boxesHtml);
     $('#twPlanOutputContainer').show();
-    alert('✅ План успешно составлен!');
+    alert('✅ Готово! План сформирован, в письмах таблица идет строго по вашему порядку.');
   });
 
   // Кнопки управления планом внизу
@@ -778,6 +873,7 @@ javascript:(function(){
 
   $('#twClearPlanBtn').click(function(){
     $('#twPlanOutputText').val('');
+    $('#twPlanBoxesArea').html('');
     $('#twPlanOutputContainer').hide();
   });
 
