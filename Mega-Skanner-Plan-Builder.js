@@ -190,7 +190,7 @@ javascript:(function(){
     }();
   }
 
-  const version = 'v8.6 (Exact Mail Table Order)';
+  const version = 'v18.0 (Spoiler Code Wrapper)';
   let storedVillageList = {};
   const coordinateRegex = /\d{1,3}\|\d{1,3}/g;
 
@@ -291,9 +291,15 @@ javascript:(function(){
   let savedReturns = localStorage.getItem(`tw_scanner_returns_${game_data.world}`) !== 'false';
   let savedHideReservations = localStorage.getItem(`tw_scanner_hidereservations_${game_data.world}`) === 'true';
   let savedNobleSearch = localStorage.getItem(`tw_scanner_noblesearch_${game_data.world}`) !== 'false';
+  let savedUseTribeTroops = localStorage.getItem(`tw_scanner_usetribetroops_${game_data.world}`) === 'true';
+
+  let savedFilterOff = localStorage.getItem(`tw_scanner_filteroff_${game_data.world}`) === 'true';
+  let savedMinAxes = localStorage.getItem(`tw_scanner_minaxes_${game_data.world}`) || '4000';
+  let savedFilterNoble = localStorage.getItem(`tw_scanner_filternoble_${game_data.world}`) === 'true';
+  let savedMinNobles = localStorage.getItem(`tw_scanner_minnobles_${game_data.world}`) || '1';
 
   let panelHtml = `
-  <div id="twAdvancedScannerWin" style="position:fixed; top:40px; left:60px; z-index:99999; background:#f4e4bc; border:2px solid #7d510f; width:940px; height:780px; box-shadow:0 0 15px rgba(0,0,0,0.5); display:flex; flex-direction:column; border-radius:6px; font-family:Verdana; font-size:11px;">
+  <div id="twAdvancedScannerWin" style="position:fixed; top:40px; left:60px; z-index:99999; background:#f4e4bc; border:2px solid #7d510f; width:940px; height:850px; box-shadow:0 0 15px rgba(0,0,0,0.5); display:flex; flex-direction:column; border-radius:6px; font-family:Verdana; font-size:11px;">
       <div class="resize-handle resize-top" style="position:absolute; top:-8px; left:0; right:0; height:16px; cursor:n-resize; z-index:999999;"></div>
       <div class="resize-handle resize-bottom" style="position:absolute; bottom:-8px; left:0; right:0; height:16px; cursor:s-resize; z-index:999999;"></div>
       <div class="resize-handle resize-left" style="position:absolute; top:0; bottom:0; left:-8px; width:16px; cursor:w-resize; z-index:999999;"></div>
@@ -304,7 +310,7 @@ javascript:(function(){
       <div class="resize-handle resize-bottom-right" style="position:absolute; bottom:-8px; right:-8px; width:22px; height:22px; cursor:se-resize; z-index:1000000;"></div>
 
       <div id="twScannerHeader" style="background:linear-gradient(to bottom, #f4e4bc 0%, #e3c696 100%); border-bottom:1px solid #7d510f; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; cursor:move; user-select:none; flex-shrink:0;">
-          <h3 style="margin:0; color:#5b3511; font-size:14px;">🎯 Мега-Сканер + Составление Плана Атак <small style="font-size:10px; color:darkblue">(${version})</small></h3>
+          <h3 style="margin:0; color:#5b3511; font-size:14px;">🎯 Мега-Сканер + Спойлер-Код <small style="font-size:10px; color:darkblue">(${version})</small></h3>
           <button class="btn btn-default" onclick="$('#twAdvancedScannerWin').remove();" style="padding:2px 6px; font-weight:bold; background:#d9534f; color:#fff; border:1px solid #b52b27; cursor:pointer;">✕</button>
       </div>
 
@@ -321,6 +327,22 @@ javascript:(function(){
                   <label style="cursor:pointer; color:#b71c1c;"><input type="checkbox" id="twShowReturns" ${savedReturns?'checked':''}> 🟠 Возвраты</label>
               </div>
               <button id="twClearInputsBtn" style="background:#d9534f; color:#fff; border:1px solid #b52b27; padding:2px 8px; cursor:pointer; font-size:10px; font-weight:bold;">🗑️ Очистить выбор</button>
+          </div>
+
+          <div style="background:#f1e3c8; border:1px solid #c8b18a; padding:6px 10px; border-radius:4px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; flex-shrink:0;">
+              <label style="cursor:pointer; color:#7d0f0f; font-weight:bold;"><input type="checkbox" id="twUseTribeTroops" ${savedUseTribeTroops?'checked':''}> Авто-подтяжка войск (members_defense)</label>
+              <div style="border-left:1px solid #bfa57b; height:16px; margin:0 2px;"></div>
+              <label style="cursor:pointer; color:#5b3511; font-weight:bold;"><input type="checkbox" id="twFilterOff" ${savedFilterOff?'checked':''}> Искать офф</label>
+              <div style="display:flex; align-items:center; gap:4px;">
+                  <span style="font-size:10px;">Мин. топоров:</span>
+                  <input type="number" id="twMinAxes" value="${savedMinAxes}" style="width:60px; padding:2px; text-align:center;" min="0">
+              </div>
+              <div style="border-left:1px solid #bfa57b; height:16px; margin:0 2px;"></div>
+              <label style="cursor:pointer; color:#5b3511; font-weight:bold;"><input type="checkbox" id="twFilterNoble" ${savedFilterNoble?'checked':''}> Искать дворов</label>
+              <div style="display:flex; align-items:center; gap:4px;">
+                  <span style="font-size:10px;">Мин. дворов:</span>
+                  <input type="number" id="twMinNobles" value="${savedMinNobles}" style="width:40px; padding:2px; text-align:center;" min="1" max="10">
+              </div>
           </div>
 
           <div style="display:flex; gap:8px; flex-shrink:0;">
@@ -359,7 +381,7 @@ javascript:(function(){
           <!-- Окно плана внизу -->
           <div id="twPlanOutputContainer" style="background:#fffde8; border:1px solid #7d510f; padding:8px; display:none; height:230px; flex-shrink:0; display:flex; flex-direction:column; border-radius:4px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; flex-shrink:0;">
-                  <b style="color:#5b3511;">📝 Сформированный план атак (BB-коды и чистая тема):</b>
+                  <b style="color:#5b3511;">📝 Сформированный план атак (Спойлер + Код):</b>
                   <div style="display:flex; gap:6px;">
                       <button id="twCopyPlanBtn" style="background:#2e7d32; color:#fff; border:1px solid #1b4e1f; padding:3px 10px; cursor:pointer; font-weight:bold; font-size:10px;">📋 Копировать план</button>
                       <button id="twClearPlanBtn" style="background:#d9534f; color:#fff; border:1px solid #b52b27; padding:3px 10px; cursor:pointer; font-weight:bold; font-size:10px;">🗑️ Очистить</button>
@@ -387,6 +409,11 @@ javascript:(function(){
     localStorage.setItem(`tw_scanner_returns_${game_data.world}`, $('#twShowReturns').is(':checked'));
     localStorage.setItem(`tw_scanner_hidereservations_${game_data.world}`, $('#twHideReservations').is(':checked'));
     localStorage.setItem(`tw_scanner_noblesearch_${game_data.world}`, $('#twNobleSearch').is(':checked'));
+    localStorage.setItem(`tw_scanner_usetribetroops_${game_data.world}`, $('#twUseTribeTroops').is(':checked'));
+    localStorage.setItem(`tw_scanner_filteroff_${game_data.world}`, $('#twFilterOff').is(':checked'));
+    localStorage.setItem(`tw_scanner_minaxes_${game_data.world}`, $('#twMinAxes').val());
+    localStorage.setItem(`tw_scanner_filternoble_${game_data.world}`, $('#twFilterNoble').is(':checked'));
+    localStorage.setItem(`tw_scanner_minnobles_${game_data.world}`, $('#twMinNobles').val());
   }
 
   $('#twAdvancedScannerWin input').on('input change', function() {
@@ -412,6 +439,11 @@ javascript:(function(){
     $('#twShowReturns').prop('checked', true);
     $('#twHideReservations').prop('checked', false);
     $('#twNobleSearch').prop('checked', true);
+    $('#twUseTribeTroops').prop('checked', false);
+    $('#twFilterOff').prop('checked', false);
+    $('#twMinAxes').val('4000');
+    $('#twFilterNoble').prop('checked', false);
+    $('#twMinNobles').val('1');
     $('#twSelectAllCheckbox').prop('checked', false);
     localStorage.clear();
     $('#twScanResults').html('Настройки очищены.');
@@ -433,12 +465,8 @@ javascript:(function(){
     let displayedCount = 0;
 
     window.scannedEnemyData.forEach(item => {
-      if (hideReservations && item.isReserved) {
-        return;
-      }
-      if (!nobleSearch && item.hasNobles) {
-        return;
-      }
+      if (hideReservations && item.isReserved) return;
+      if (!nobleSearch && item.hasNobles) return;
 
       displayedCount++;
       outputHtml += item.htmlBlock;
@@ -450,6 +478,106 @@ javascript:(function(){
 
     $resBox.html(outputHtml);
     $('#twSelectAllCheckbox').prop('checked', false);
+  }
+
+  // Функция точного парсинга войск племени
+  async function fetchTribeTroopsData(ownPlayerIdsMap) {
+    let troopsCache = {}; 
+    let useTribeTroops = $('#twUseTribeTroops').is(':checked');
+    if (!useTribeTroops) return troopsCache;
+
+    try {
+      let server = window.location.protocol + "//" + window.location.host + "/";
+      let sitterParam = typeof window.sitter_id !== 'undefined' && window.sitter_id ? `t=${window.sitter_id}&` : '';
+      
+      let mainDefPage = await $.get(server + "game.php?" + sitterParam + "screen=ally&mode=members_defense");
+      let $parsedMain = $($.parseHTML(mainDefPage));
+      let unitoption = {};
+      
+      $parsedMain.find("[name='player_id'] option:enabled").each(function(){
+        let playerName = $(this).text().trim().toLowerCase();
+        let pVal = $(this).val();
+        unitoption[playerName] = pVal;
+      });
+
+      let targetPlayerIds = [];
+      Object.keys(ownPlayerIdsMap).forEach(pNameLower => {
+        if (unitoption[pNameLower]) {
+          targetPlayerIds.push({ id: unitoption[pNameLower], name: pNameLower });
+        }
+      });
+
+      if (targetPlayerIds.length === 0) {
+        $parsedMain.find("[name='player_id'] option:enabled").each(function(){
+          let pVal = $(this).val();
+          if(pVal) targetPlayerIds.push({ id: pVal, name: $(this).text().trim() });
+        });
+      }
+
+      for (let i = 0; i < targetPlayerIds.length; i++) {
+        let pObj = targetPlayerIds[i];
+        await new Promise(resolve => setTimeout(resolve, 250));
+        try {
+          let data = await $.get(server + "game.php?" + sitterParam + "screen=ally&mode=members_defense&player_id=" + pObj.id);
+          let el = document.createElement('html');
+          el.innerHTML = data;
+          let w100Elem = el.getElementsByClassName("w100")[0];
+          if(w100Elem && w100Elem.parentNode) {
+            let table = w100Elem.parentNode.getElementsByTagName("table")[0];
+            if(table && table.rows) {
+              let trows = table.rows;
+              
+              let colMap = { spear: 2, sword: 3, axe: 4, light: 7, heavy: 9, ram: 10, snob: 14 };
+              
+              if(trows.length > 0) {
+                let headerCells = trows[0].cells;
+                for(let h=0; h<headerCells.length; h++) {
+                  let img = headerCells[h].querySelector('img');
+                  if(img && img.src) {
+                    if(img.src.includes('spear')) colMap.spear = h;
+                    if(img.src.includes('sword')) colMap.sword = h;
+                    if(img.src.includes('axe')) colMap.axe = h;
+                    if(img.src.includes('light')) colMap.light = h;
+                    if(img.src.includes('heavy')) colMap.heavy = h;
+                    if(img.src.includes('ram')) colMap.ram = h;
+                    if(img.src.includes('snob')) colMap.snob = h;
+                  }
+                }
+              }
+
+              for(let j = 1; j < trows.length; ++j){
+                let cells = trows[j].cells;
+                if(!cells || cells.length < 5) continue;
+                let matchCoord = cells[0].innerText.match(/\d+\|\d+/);
+                if(!matchCoord) continue;
+                let coords = matchCoord[0];
+
+                let spear = parseInt(cells[colMap.spear] ? cells[colMap.spear].innerText.replace(/\./g, '') : 0, 10) || 0;
+                let sword = parseInt(cells[colMap.sword] ? cells[colMap.sword].innerText.replace(/\./g, '') : 0, 10) || 0;
+                let axes = parseInt(cells[colMap.axe] ? cells[colMap.axe].innerText.replace(/\./g, '') : 0, 10) || 0;
+                let light = parseInt(cells[colMap.light] ? cells[colMap.light].innerText.replace(/\./g, '') : 0, 10) || 0;
+                let heavy = parseInt(cells[colMap.heavy] ? cells[colMap.heavy].innerText.replace(/\./g, '') : 0, 10) || 0;
+                let ram = parseInt(cells[colMap.ram] ? cells[colMap.ram].innerText.replace(/\./g, '') : 0, 10) || 0;
+                let nobles = parseInt(cells[colMap.snob] ? cells[colMap.snob].innerText.replace(/\./g, '') : 0, 10) || 0;
+
+                let attackPower = axes + (light * 4) + (ram * 5);
+                let defensePower = spear + sword + (heavy * 6);
+                let troopType = (attackPower > defensePower) ? "офф" : "дефф";
+
+                troopsCache[coords] = {
+                  axes: axes,
+                  nobles: nobles,
+                  type: troopType
+                };
+              }
+            }
+          }
+        } catch(err) {}
+      }
+    } catch(e) {
+      console.error("Ошибка загрузки войск племени:", e);
+    }
+    return troopsCache;
   }
 
   // Запуск сканирования
@@ -466,6 +594,11 @@ javascript:(function(){
     let showSupports = $('#twShowSupports').is(':checked');
     let showReturns = $('#twShowReturns').is(':checked');
 
+    let filterOffEnabled = $('#twFilterOff').is(':checked');
+    let minAxesVal = parseInt($('#twMinAxes').val(), 10) || 4000;
+    let filterNobleEnabled = $('#twFilterNoble').is(':checked');
+    let minNoblesVal = parseInt($('#twMinNobles').val(), 10) || 1;
+
     if(!enemyInput || !ownInput) {
       alert('Заполните поле врагов и поле своих!');
       return;
@@ -475,7 +608,7 @@ javascript:(function(){
     let ownQueries = ownInput.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0);
     let $resBox = $('#twScanResults');
     
-    $resBox.html('🔄 Загрузка данных с сервера игры...');
+    $resBox.html('🔄 Загрузка данных с сервера игры и парсинг войск...');
     $('#twMakePlanBtn, #twCopyTableBtn').hide();
     $('#twPlanOutputContainer').hide();
     window.scannedEnemyData = [];
@@ -533,10 +666,14 @@ javascript:(function(){
       });
 
       let ownAllies = new Set(), ownNames = new Set();
+      let ownPlayerIdsMap = {};
       ownQueries.forEach(q => {
         let cleanQ = q.replace(/^\[|\]$/g, '');
         if(allyTagToId[cleanQ]) ownAllies.add(allyTagToId[cleanQ]);
-        else ownNames.add(q);
+        else {
+          ownNames.add(q);
+          ownPlayerIdsMap[q] = true;
+        }
       });
 
       let enemyPlayerIds = new Set(), ownPlayerIds = new Set(), playersMap = {};
@@ -551,7 +688,10 @@ javascript:(function(){
           let lowerName = pName.toLowerCase();
 
           if(enemyAllies.has(pAllyId) || enemyNames.has(lowerName)) enemyPlayerIds.add(pId);
-          if(ownAllies.has(pAllyId) || ownNames.has(lowerName)) ownPlayerIds.add(pId);
+          if(ownAllies.has(pAllyId) || ownNames.has(lowerName)) {
+            ownPlayerIds.add(pId);
+            ownPlayerIdsMap[lowerName] = true;
+          }
         }
       });
 
@@ -563,6 +703,8 @@ javascript:(function(){
         $resBox.html('<span style="color:red;">❌ Свои не найдены! Проверьте правильность тегов или ников.</span>');
         return;
       }
+
+      let tribeTroopsCache = await fetchTribeTroopsData(ownPlayerIdsMap);
 
       let enemyVillages = [];
       vText.split('\n').forEach(line => {
@@ -590,7 +732,20 @@ javascript:(function(){
         let parts = line.split(',');
         if(parts.length >= 5 && ownPlayerIds.has(parts[4].trim())) {
           let x = parseInt(parts[2], 10), y = parseInt(parts[3], 10);
-          ownVillagesList.push({ id: parts[0].trim(), name: decodeURIComponent(parts[1].replace(/\+/g, ' ')), x: x, y: y, playerId: parts[4].trim(), coord: x+'|'+y });
+          let coord = x+'|'+y;
+          let troopInfo = tribeTroopsCache[coord] || { axes: 0, nobles: 0, type: 'офф' };
+          
+          ownVillagesList.push({ 
+            id: parts[0].trim(), 
+            name: decodeURIComponent(parts[1].replace(/\+/g, ' ')), 
+            x: x, 
+            y: y, 
+            playerId: parts[4].trim(), 
+            coord: coord,
+            axes: troopInfo.axes,
+            nobles: troopInfo.nobles,
+            troopType: troopInfo.type
+          });
         }
       });
 
@@ -618,22 +773,32 @@ javascript:(function(){
         let distances = ownVillagesList.map(tv => {
           let dist = Math.sqrt(Math.pow(ev.x - tv.x, 2) + Math.pow(ev.y - tv.y, 2));
           let ownOwnerObj = playersMap[tv.playerId];
-          return { tv: tv, dist: dist, owner: ownOwnerObj ? ownOwnerObj.name : 'Неизвестно' };
+          let [targetX, targetY] = ev.coord.split('|');
+          let rallyPointUrl = `${window.location.origin}/game.php?village=${tv.id}&screen=place&x=${targetX}&y=${targetY}`;
+          return { tv: tv, dist: dist, owner: ownOwnerObj ? ownOwnerObj.name : 'Неизвестно', axes: tv.axes, nobles: tv.nobles, troopType: tv.troopType, rallyPointUrl: rallyPointUrl };
         });
 
         if(maxDist !== null) distances = distances.filter(item => item.dist <= maxDist);
+
+        if (filterOffEnabled) {
+          distances = distances.filter(item => item.troopType === 'офф' && item.axes >= minAxesVal);
+        }
+        if (filterNobleEnabled) {
+          distances = distances.filter(item => item.nobles >= minNoblesVal);
+        }
+
         distances.sort((a, b) => a.dist - b.dist);
         let topList = distances.slice(0, topLimit);
 
         if(topList.length === 0) {
-          blockHtml += `&nbsp;&nbsp;<i>Нет своих деревень в радиусе.</i><br>`;
+          blockHtml += `&nbsp;&nbsp;<i>Нет своих деревень по заданным фильтрам войск.</i><br>`;
         } else {
           topList.forEach((item, idx) => {
-            blockHtml += `<div style="display:flex; justify-content:space-between; align-items:center; margin:2px 0 2px 15px; background:#fffcf2; padding:3px 6px; border:1px solid #ebd9b5; border-radius:3px;">
-              <label style="cursor:pointer; flex-grow:1;" data-owner="${item.owner}"><input type="checkbox" class="own-village-chk" style="vertical-align:-2px; margin-right:3px;"> ${idx+1}. ${item.tv.name} (${item.tv.coord}) — <b>${item.dist.toFixed(1)} п.</b> (Игрок: ${item.owner})</label>
+            blockHtml += `<div style="display:flex; justify-content:space-between; align-items:center; margin:2px 0 2px 15px; background:#fffcf2; padding:3px 6px; border:1px solid #ebd9b5; border-radius:3px;" data-rally-url="${item.rallyPointUrl}" data-vcoord="${item.tv.coord}">
+              <label style="cursor:pointer; flex-grow:1;" data-owner="${item.owner}"><input type="checkbox" class="own-village-chk" style="vertical-align:-2px; margin-right:3px;"> ${idx+1}. ${item.tv.name} (${item.tv.coord}) — <b>${item.dist.toFixed(1)} п.</b> [Игрок: ${item.owner}] <span style="color:#7d0f0f;">(Тип: <b>${item.troopType.toUpperCase()}</b> | Топоры: ${item.axes}, Дворы: ${item.nobles})</span></label>
               <div style="display:flex; gap:6px; align-items:center; font-size:10px;">
-                <span>Офф: <input type="number" class="nearby-off-input" value="0" min="0" style="width:45px; text-align:center; padding:1px;"></span>
-                <span>Двор: <input type="number" class="nearby-noble-input" value="0" min="0" style="width:35px; text-align:center; padding:1px;"></span>
+                <span>Офф: <input type="number" class="nearby-off-input" value="${item.axes}" min="0" style="width:45px; text-align:center; padding:1px;"></span>
+                <span>Двор: <input type="number" class="nearby-noble-input" value="${item.nobles}" min="0" style="width:35px; text-align:center; padding:1px;"></span>
               </div>
             </div>`;
           });
@@ -724,20 +889,21 @@ javascript:(function(){
     });
   });
 
-  // Функция автоматического открытия письма: таблица строго в вашем порядке
+  // Функция автоматического отправления письма с оберткой в [spoiler=Ник][code]...[/code][/spoiler]
   window.twSendLetterToPlayer = function(ownerName, rowsDataArray) {
     let cleanNick = ownerName.trim();
     let templateText = "Привет! Вот твои цели на добор:";
     
-    // Формируем таблицу: [Враг] | [Деревня] | [Игрок] | [Войска]
     let tableCode = "[table]\n";
-    tableCode += "[**]Враг[||]Деревня[||]Игрок[||]Войска[/**]\n";
+    tableCode += "[**]Враг[||]куда[||]Игрок[||]откуда[||]Войска[||]ссылка[/**]\n";
+
     rowsDataArray.forEach(item => {
-      tableCode += `[*][player]${item.enemy}[/player][|][village]${item.toCoord}[/village][|][player]${item.owner}[/player][|]Офф: ${item.off}, Двор: ${item.noble}\n`;
+      let troopsText = `[Офф:${item.off},Двор:${item.noble}]`;
+      tableCode += `[*][player]${item.enemy}[/player][|][village]${item.toCoord}[/village][|][player]${item.owner}[/player][|][village]${item.fromCoord}[/village][|]${troopsText}[|][url=${item.rallyUrl}]Rally point[/url]\n`;
     });
     tableCode += "[/table]";
 
-    let fullContent = templateText + "\n\n" + tableCode;
+    let fullWrappedContent = `${templateText}\n\n[spoiler=${cleanNick}]\n[code]\n${tableCode}[/code]\n[/spoiler]`;
     let mailSubject = "добор";
 
     let mailWin = window.open(window.location.origin + '/game.php?screen=mail&mode=new', '_blank');
@@ -757,7 +923,7 @@ javascript:(function(){
         if(to && sub && txt) {
           to.value = cleanNick;
           sub.value = mailSubject;
-          txt.value = fullContent;
+          txt.value = fullWrappedContent;
           [to, sub, txt].forEach(el => el.dispatchEvent(new Event('input', { bubbles: true })));
           clearInterval(timer);
         }
@@ -765,7 +931,6 @@ javascript:(function(){
     }, 500);
   };
 
-  // Кнопка «Составить план» (окно сканера без изменений)
   $('#twMakePlanBtn').click(function(){
     let playersMap = {};
     let selectedCount = 0;
@@ -783,6 +948,9 @@ javascript:(function(){
           if($(this).is(':checked')) {
             let container = $(this).closest('div');
             let ownerName = container.find('label').attr('data-owner') || 'Неизвестно';
+            let fromCoord = container.attr('data-vcoord') || '';
+            let rallyUrl = container.attr('data-rally-url') || '';
+            
             let customOff = container.find('.nearby-off-input').val() || 0;
             let customNoble = container.find('.nearby-noble-input').val() || 0;
 
@@ -790,15 +958,18 @@ javascript:(function(){
               playersMap[ownerName] = [];
             }
 
-            let line = `Цель: 🎯 [Враг: [player]${enemyPlayer}[/player]] Деревня: [village]${villageCoord}[/village] ➔  (Игрок: [player]${ownerName}[/player]) [Офф: ${customOff}, Двор: ${customNoble}]`;
+            let troopsText = `[Офф:${customOff},Двор:${customNoble}]`;
+            let rowLine = `[*][player]${enemyPlayer}[/player][|][village]${villageCoord}[/village][|][player]${ownerName}[/player][|][village]${fromCoord}[/village][|]${troopsText}[|][url=${rallyUrl}]Rally point[/url]`;
             
             playersMap[ownerName].push({
-              textLine: line,
+              textLine: rowLine,
               toCoord: villageCoord,
               enemy: enemyPlayer,
               owner: ownerName,
+              fromCoord: fromCoord,
               off: customOff,
-              noble: customNoble
+              noble: customNoble,
+              rallyUrl: rallyUrl
             });
             selectedCount++;
           }
@@ -819,19 +990,25 @@ javascript:(function(){
       plainTextLines.push(`Привет! Вот твои цели для атак:`);
       
       let rowsDataForMail = [];
-      let linesHtml = '';
+      let tableLinesHtml = "[table]\n[**]Враг[||]куда[||]Игрок[||]откуда[||]Войска[||]ссылка[/**]\n";
 
       playersMap[owner].forEach(item => {
-        plainTextLines.push(item.textLine);
-        linesHtml += `<div>${item.textLine}</div>`;
+        tableLinesHtml += item.textLine + "\n";
         rowsDataForMail.push({
           toCoord: item.toCoord,
           enemy: item.enemy,
           owner: item.owner,
+          fromCoord: item.fromCoord,
           off: item.off,
-          noble: item.noble
+          noble: item.noble,
+          rallyUrl: item.rallyUrl
         });
       });
+      tableLinesHtml += "[/table]";
+
+      let fullWrappedBlock = `[spoiler=${owner}]\n[code]\n${tableLinesHtml}\n[/code]\n[/spoiler]`;
+
+      plainTextLines.push(fullWrappedBlock);
 
       let rowsJson = encodeURIComponent(JSON.stringify(rowsDataForMail));
 
@@ -840,8 +1017,8 @@ javascript:(function(){
           <span>👤 План для игрока: ${owner} (целей: ${playersMap[owner].length})</span>
           <button onclick="window.twSendLetterToPlayer('${owner.replace(/'/g, "\\'")}', JSON.parse(decodeURIComponent('${rowsJson}')))" style="background:#7d0f0f; color:#fff; border:1px solid #4a0606; padding:2px 8px; cursor:pointer; font-weight:bold; border-radius:3px; font-size:10px;">✉️ Отправить письмо</button>
         </div>
-        <div style="font-family:monospace; font-size:11px; line-height:1.4;">
-          ${linesHtml}
+        <div style="font-family:monospace; font-size:11px; line-height:1.4; white-space: pre-wrap;">
+          ${fullWrappedBlock}
         </div>
       </div>`;
 
@@ -851,10 +1028,9 @@ javascript:(function(){
     $('#twPlanOutputText').val(plainTextLines.join('\n'));
     $('#twPlanBoxesArea').html(boxesHtml);
     $('#twPlanOutputContainer').show();
-    alert('✅ Готово! План сформирован, в письмах таблица идет строго по вашему порядку.');
+    alert('✅ Готово! План упакован в спойлеры и коды.');
   });
 
-  // Кнопки управления планом внизу
   $('#twCopyPlanBtn').click(function(){
     let text = $('#twPlanOutputText').val();
     if(text) {
@@ -877,7 +1053,6 @@ javascript:(function(){
     $('#twPlanOutputContainer').hide();
   });
 
-  // Кнопка копирования для Google Таблиц
   $('#twCopyTableBtn').click(function(){
     if(!window.scannedEnemyData || window.scannedEnemyData.length === 0) {
       alert('Нет данных для копирования!');
